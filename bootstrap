@@ -24,12 +24,6 @@ if [[ ! -f $LFS/sources/fich ]]; then
 	cp -v $runpath/wget-list $LFS/sources
 	cp -v $runpath/md5sums $LFS/sources
 	cp -v $runpath/no-gentoo.patch $LFS/sources
-	cp -vr $runpath/simple-0.1 $LFS/sources
-
-	if [[ ! -d $LFS/sources/simple-0.1 ]]; then
-		echo "no simple copy"
-		exit 1
-	fi
 
 	if [[ ! -f $LFS/sources/wget-list || ! -f $LFS/sources/md5sums ]]; then
 		echo "no wget or md5sum file"
@@ -1206,9 +1200,9 @@ grpconv
 
 echo "nameserver 8.8.8.8" > /etc/resolv.conf
 
-cd /sources/simple-0.1
-./install.sh
-
+###
+# install simple
+###
 }
 
 
