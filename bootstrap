@@ -322,7 +322,7 @@ PATH=/tools/cross/bin:${PATH} make
 PATH=/tools/cross/bin:${PATH} make install
 
 PATH=/tools/cross/bin:${PATH} make -C ld clean
-PATH=/tools/cross/bin:${PATH} make -C ld LIB_PATH=/usr/lib:/lib
+PATH=/tools/cross/bin:${PATH} make -C ld LIB_PATH=/lib:/usr/lib
 cp -v ld/ld-new /tools/bin
 
 cd $source_dir
