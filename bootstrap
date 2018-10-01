@@ -89,7 +89,7 @@ echo "bootstraping will be continue from lfs user"
 
 setvar(){
 PACKAGE_A=$(find * -maxdepth 1 -type f -name "*$PACKAGE*")
-PACKAGE_N=$(echo "$PACKAGE_A" | sed -r 's/(\.tar|\.bz|\.bz2|\.gz|\.xz|\.zip)//g')
+PACKAGE_N=$(echo "$PACKAGE_A" | sed -r 's/(\.tar|\.bz|\.gz|\.xz|\.zip)//g')
 }
 
 
@@ -118,7 +118,7 @@ cd $LFS/sources
 
 #####################
 echo zzzzzzzzzz binutils 1 step
-PACKAGE=binutils-2.29.tar.bz2 setvar
+PACKAGE=binutils-2.29.tar.xz setvar
 
 echo "arhive $PACKAGE_A"
 echo "name $PACKAGE_N"
@@ -296,7 +296,7 @@ rm -rf $PACKAGE_N
 
 ###############################
 echo binutils step 2
-PACKAGE=binutils-2.29.tar.bz2 setvar
+PACKAGE=binutils-2.29.tar.xz setvar
 echo -n "extracting... "
 tar -xf $PACKAGE_A
 echo "done"
@@ -559,19 +559,6 @@ rm -rf $PACKAGE_N
 
 ############################
 ############################
-echo zzzzzzzz bzip2
-PACKAGE=bzip2-1.0.6.tar.gz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-make
-make PREFIX=/tools install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
 echo zzzzzzzz coreutils
 PACKAGE=coreutils-8.27.tar.xz setvar
 tar -xf $PACKAGE_A
@@ -718,7 +705,7 @@ rm -rf $PACKAGE_N
 ############################
 ############################
 echo zzzzzzzz make
-PACKAGE=make-4.2.1.tar.bz2 setvar
+PACKAGE=make-4.2.1.tar.gz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
