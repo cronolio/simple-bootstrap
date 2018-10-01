@@ -1,4 +1,4 @@
-23733a26c8276edbb1168c9bee60e40e  binutils-2.29.tar.bz2
+87978750715952fbb9f870940e9dcbeb  binutils-2.29.tar.xz
 d6a1d5f8ddea3abd2cc3e98f58352d26  mpc-1.0.3.tar.gz
 c4ac246cf9795a4491e7766002cd528f  mpfr-3.1.5.tar.xz
 f58fa8001d60c4c77595fbbb62b63c1d  gmp-6.1.2.tar.xz
@@ -6,14 +6,12 @@ ff370482573133a7fcdd96cd2f552292  gcc-7.2.0.tar.xz
 245d1b4dc6e82669aac2c9e6a2dd82fe  linux-4.12.7.tar.xz
 102f637c3812f81111f48f2427611be1  glibc-2.26.tar.xz
 97d654f4d7253173b3eeb76a836dd65e  tzdata2018e.tar.gz
-23733a26c8276edbb1168c9bee60e40e  binutils-2.29.tar.bz2
 f6e931e319531b736fadc017f470e68a  pkg-config-0.29.2.tar.gz
 ee13d052e1ead260d7c28071f46eefb1  ncurses-6.0.tar.gz
 205b03a87fc83dab653b628c59b9fc91  readline-7.0.tar.gz
 518e2c187cc11a17040f0915dddce54e  bash-4.4.18.tar.gz
 8f43e1d277b02f3319a34c1cd4a4ff3e  bash44-019
 c342201de104cc9ce0a21e0ad10d4021  bison-3.0.4.tar.xz
-00b516f4704d4a7cb50a1d97e6e8e15b  bzip2-1.0.6.tar.gz
 502795792c212932365e077946d353ae  coreutils-8.27.tar.xz
 07cf286672ced26fba54cd0313bdc071  diffutils-3.6.tar.xz
 319627d20c9658eae85b056115b8c90a  file-5.31.tar.gz
@@ -23,7 +21,7 @@ df3f5690eaa30fd228537b00cb7b7590  gettext-0.19.8.1.tar.xz
 feca7b3e7c7f4aab2b42ecbfc513b070  grep-3.1.tar.xz
 f7caabb65cddc1a4165b398009bd05b9  gzip-1.8.tar.xz
 730bb15d96fffe47e148d1e09235af82  m4-1.4.18.tar.xz
-15b012617e7c44c0ed482721629577ac  make-4.2.1.tar.bz2
+7d0dcb6c474b258aab4d54098f2cf5a7  make-4.2.1.tar.gz
 e3da7940431633fb65a01b91d3b7a27a  patch-2.7.5.tar.xz
 8c6995718e4cb62188f0d5e3488cd91f  perl-5.26.0.tar.xz
 e0c583d4c380059abd818cd540fe6938  sed-4.4.tar.xz
@@ -31,7 +29,7 @@ a1802fec550baaeecff6c381629653ef  tar-1.29.tar.xz
 2a676c8339efe6ddea0f1cb52e626d15  texinfo-6.4.tar.xz
 5e5ec141e775efe36f640e62f3f8cd0d  util-linux-2.30.1.tar.xz
 60fb79cab777e3f71ca43d298adacbd5  xz-5.2.3.tar.xz
-c160d22723b1670447341b08c58981c1  pcre-8.41.tar.bz2
+2e7896647ee25799cb454fe287ffcd08  pcre-8.41.tar.gz
 85adef240c5f370b308da8c938951a68  zlib-1.2.11.tar.xz
 733b3f80a0a2f44fb25de6c6d3a583cf  nano-2.8.7.tar.xz
 cda93857418655ea43590736fc3ca9fc  bc-1.07.1.tar.gz
