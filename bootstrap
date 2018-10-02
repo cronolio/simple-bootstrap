@@ -12,7 +12,7 @@ export LC_ALL=POSIX
 echo LFS is $LFS
 
 mkdir -pv $LFS
-mount -v -t ext4 /dev/sdb1 $LFS
+mount -v -t jfs /dev/vdb1 $LFS
 
 mkdir -v $LFS/sources
 chmod -v a+wt $LFS/sources
@@ -521,7 +521,7 @@ rm -rf $PACKAGE_N
 
 ############################
 echo zzzzzzzz bash
-PACKAGE=bash-4.4.tar.gz setvar
+PACKAGE=bash-4.4.18.tar.gz setvar
 echo -n "extracting... "
 tar -xf $PACKAGE_A
 echo "done"
