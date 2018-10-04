@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# based on 
+# based on
 # http://www.linuxfromscratch.org/lfs/view/8.1-systemd/
 
 run_default(){
