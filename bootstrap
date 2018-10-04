@@ -1129,7 +1129,8 @@ install -dv -m 0750 /root
 install -dv -m 1777 /tmp /var/tmp
 
 #######
-ln -s / /usr
+cd /
+ln -s ./ /usr
 
 mkdir -pv /usr/{bin,include,lib,sbin,src}
 mkdir -pv /usr/share/{color,dict,doc,info,locale,man}
