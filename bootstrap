@@ -12,7 +12,8 @@ export LC_ALL=POSIX
 echo LFS is $LFS
 
 mkdir -pv $LFS
-mount -v -t jfs /dev/vdb1 $LFS
+mount -v -t jfs /dev/vdb3 $LFS
+mount -v -t jfs /dev/vdb1 $LFS/boot
 
 mkdir -v $LFS/sources
 chmod -v a+wt $LFS/sources
