@@ -1190,6 +1190,11 @@ grpconv
 
 echo "nameserver 8.8.8.8" > /etc/resolv.conf
 
+# required for first installation of glibc
+ln -sfv /tools/lib/gcc /usr/lib
+ln -sfv ../lib/ld-linux-x86-64.so.2 /lib64
+ln -sfv ../lib/ld-linux-x86-64.so.2 /lib64/ld-lsb-x86-64.so.3
+
 ###
 # install simple
 ###
