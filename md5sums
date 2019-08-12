@@ -11,7 +11,9 @@ f6e931e319531b736fadc017f470e68a  pkg-config-0.29.2.tar.gz
 7e6c1f16aee3244a69aba6e438295ca3  readline-8.0.tar.gz
 2b44b47b905be16f45709648f671820b  bash-5.0.tar.gz
 0d174cdaf85721c5723bf52355be41e6  binutils-2.32.tar.xz
+c9b552dee234b2f6b66e56b27e5234c9  bison-3.3.2.tar.xz
 ab06d68949758971fe744db66b572816  coreutils-8.30.tar.xz
+a9404fb575dfd5514f3c8f4120f9ca7d  coreutils-8.30-i18n-1.patch
 4824adc0e95dbbf11dfbdfaad6a1e461  diffutils-3.7.tar.xz
 9af0eb3f5db4ae00fffc37f7b861575c  file-5.36.tar.gz
 9936aa8009438ce185bea2694a997fc1  findutils-4.6.0.tar.gz
@@ -34,7 +36,7 @@ e775489c9f024a92ca0f431301ef4c5c  pcre-8.43.tar.gz
 cda93857418655ea43590736fc3ca9fc  bc-1.07.1.tar.gz
 963deb2272d6be7d4c2458afd2517b73  openssl-1.1.1a.tar.gz
 f6ebe9c7b375fc9832fb1b2028271fb7  wget-1.20.1.tar.gz
-b491fecbf1232632c32ff8f1437fd60e  shadow-4.6.tar.xz
+f7ce18c8dfd05f1a009266cb604d58b7  shadow-4.7.tar.xz
 d46413c8b00a125b1529bae385bbec55  autoconf-archive-2019.01.06.tar.xz
 1bfb9b923f2c1339b4d2ce1807064aa5  libtool-2.4.6.tar.xz
 50f97f4159805e374639a73e2636f22e  autoconf-2.69.tar.xz
