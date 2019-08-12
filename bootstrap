@@ -257,9 +257,7 @@ cd       build
       --host=$LFS_TGT                    \
       --build=$(../scripts/config.guess) \
       --enable-kernel=3.2                \
-      --with-headers=/tools/include      \
-      libc_cv_forced_unwind=yes          \
-      libc_cv_c_cleanup=yes
+      --with-headers=/tools/include
 
 make -j1
 make install
@@ -286,7 +284,7 @@ PATH=/tools/cross/bin:${PATH}       \
     --disable-nls                   \
     --disable-libstdcxx-threads     \
     --disable-libstdcxx-pch         \
-    --with-gxx-include-dir=/tools/cross/$LFS_TGT/include/c++/7.2.0
+    --with-gxx-include-dir=/tools/cross/$LFS_TGT/include/c++/8.2.0
 
 PATH=/tools/cross/bin:${PATH} make
 PATH=/tools/cross/bin:${PATH} make install
@@ -432,7 +430,7 @@ rm -rf $PACKAGE_N
 
 ############################
 
-export CFLAGS="${CFLAGS} -nostdinc -I/tools/lib/gcc/x86_64-pc-linux-gnu/7.2.0/include -I/tools/lib/gcc/x86_64-pc-linux-gnu/7.2.0/include-fixed -I/tools/include"
+export CFLAGS="${CFLAGS} -nostdinc -I/tools/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include -I/tools/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed -I/tools/include"
 
 ############################
 echo zzzzzzzz pkg-config
@@ -464,7 +462,6 @@ echo "done"
 cd $PACKAGE_N
 
 sed -i s/mawk// configure
-sed -i '/LIBTOOL_INSTALL/d' c++/Makefile.in
 
 ./configure --prefix=/tools	\
 	--enable-colorfgbg	\
@@ -608,6 +605,10 @@ PACKAGE=findutils-4.6.0.tar.gz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
+sed -i 's/IO_ftrylockfile/IO_EOF_SEEN/' gl/lib/*.c
+sed -i '/unistd/a #include <sys/sysmacros.h>' gl/lib/mountlist.c
+echo "#define _IO_IN_BACKUP 0x100" >> gl/lib/stdio-impl.h
+
 ./configure --prefix=/tools
 
 make
@@ -707,6 +708,8 @@ PACKAGE=make-4.2.1.tar.gz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
+sed -i '211,217 d; 219,229 d; 232 d' glob/glob.c
+
 ./configure --prefix=/tools --without-guile
 
 make
@@ -737,17 +740,13 @@ PACKAGE=perl-5.28.1.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
-sed -e '9751 a#ifndef PERL_IN_XSUB_RE' \
-    -e '9808 a#endif'                  \
-    -i regexec.c
-
 sh Configure -des -Dprefix=/tools -Dlibs=-lm
 
 make
 
 cp -v perl cpan/podlators/scripts/pod2man /tools/bin
-mkdir -pv /tools/lib/perl5/5.26.0
-cp -Rv lib/* /tools/lib/perl5/5.26.0
+mkdir -pv /tools/lib/perl5/5.28.1
+cp -Rv lib/* /tools/lib/perl5/5.28.1
 
 cd $source_dir
 rm -rf $PACKAGE_N
