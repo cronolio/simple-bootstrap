@@ -226,7 +226,7 @@ rm -rf $PACKAGE_N
 
 ##########################################
 ### linux api
-PACKAGE=linux-4.20.12 setvar
+PACKAGE=linux-5.2.8 setvar
 echo -n "extracting... "
 tar -xf $PACKAGE_A
 echo "done"
@@ -243,7 +243,7 @@ rm -rf $PACKAGE_N
 
 #########################################
 ### glibc
-PACKAGE=glibc-2.29.tar.xz setvar
+PACKAGE=glibc-2.30.tar.xz setvar
 echo -n "extracting... "
 tar -xf $PACKAGE_A
 echo "done"
@@ -538,7 +538,7 @@ rm -rf $PACKAGE_N
 ############################
 ############################
 echo zzzzzzzz bison
-PACKAGE=bison-3.3.2.tar.xz setvar
+PACKAGE=bison-3.4.1.tar.xz setvar
 echo -n "extracting... "
 tar -xf $PACKAGE_A
 echo "done"
@@ -555,11 +555,10 @@ rm -rf $PACKAGE_N
 ############################
 ############################
 echo zzzzzzzz coreutils
-PACKAGE=coreutils-8.30.tar.xz setvar
+PACKAGE=coreutils-8.31.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
-patch -Np1 -i ../coreutils-8.30-i18n-1.patch
 ./configure --prefix=/tools --enable-install-program=hostname
 
 make
@@ -586,7 +585,7 @@ rm -rf $PACKAGE_N
 ############################
 ############################
 echo zzzzzzzz file
-PACKAGE=file-5.36.tar.gz setvar
+PACKAGE=file-5.37.tar.gz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
@@ -620,7 +619,7 @@ rm -rf $PACKAGE_N
 ############################
 ############################
 echo zzzzzzzz gawk
-PACKAGE=gawk-4.2.1.tar.xz setvar
+PACKAGE=gawk-5.0.1.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
@@ -635,12 +634,12 @@ rm -rf $PACKAGE_N
 ############################
 ############################
 echo zzzzzzzz gettext
-PACKAGE=gettext-0.19.8.1.tar.xz setvar
+PACKAGE=gettext-0.20.1.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
 cd gettext-tools
-EMACS="no" ./configure --prefix=/tools --disable-shared
+./configure --prefix=/tools --disable-shared
 
 make -C gnulib-lib
 make -C intl pluralx.c
@@ -739,17 +738,17 @@ rm -rf $PACKAGE_N
 ############################
 ############################
 echo zzzzzzzz perl
-PACKAGE=perl-5.28.1.tar.xz setvar
+PACKAGE=perl-5.30.0.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
-sh Configure -des -Dprefix=/tools -Dlibs=-lm
+sh Configure -des -Dprefix=/tools -Dlibs=-lm -Uloclibpth -Ulocincpth
 
 make
 
 cp -v perl cpan/podlators/scripts/pod2man /tools/bin
-mkdir -pv /tools/lib/perl5/5.28.1
-cp -Rv lib/* /tools/lib/perl5/5.28.1
+mkdir -pv /tools/lib/perl5/5.30.0
+cp -Rv lib/* /tools/lib/perl5/5.30.0
 
 cd $source_dir
 rm -rf $PACKAGE_N
@@ -772,7 +771,7 @@ rm -rf $PACKAGE_N
 ############################
 ############################
 echo zzzzzzzz tar
-PACKAGE=tar-1.31.tar.xz setvar
+PACKAGE=tar-1.32.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
@@ -787,7 +786,7 @@ rm -rf $PACKAGE_N
 ############################
 ############################
 echo zzzzzzzz texinfo
-PACKAGE=texinfo-6.5.tar.xz setvar
+PACKAGE=texinfo-6.6.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
@@ -802,7 +801,7 @@ rm -rf $PACKAGE_N
 ############################
 ############################
 echo zzzzzzzz util-linux
-PACKAGE=util-linux-2.33.1.tar.xz setvar
+PACKAGE=util-linux-2.34.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
@@ -868,7 +867,7 @@ cd $source_dir
 rm -rf $PACKAGE_N
 ############################
 echo zzzzzzzzzzz nano
-PACKAGE=nano-3.2.tar.xz setvar
+PACKAGE=nano-4.4.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
@@ -889,26 +888,11 @@ cd $source_dir
 rm -rf $PACKAGE_N
 ############################
 echo zzzzzzzzzz bc
-PACKAGE=bc-1.07.1.tar.gz setvar
+PACKAGE=bc-2.1.3.tar.gz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
-cat > bc/fix-libmath_h << "EOF"
-#! /bin/bash
-sed -e '1   s/^/{"/' \
-    -e     's/$/",/' \
-    -e '2,$ s/^/"/'  \
-    -e   '$ d'       \
-    -i libmath.h
-
-sed -e '$ s/$/0}/' \
-    -i libmath.h
-EOF
-
-sed -i -e '/flex/s/as_fn_error/: ;; # &/' configure
-
-./configure --prefix=/tools \
-	--with-readline
+PREFIX=/tools CC=gcc CFLAGS="-std=c99" ./configure.sh -G -O3 --with-readline
 
 make
 make install
@@ -917,9 +901,12 @@ cd $source_dir
 rm -rf $PACKAGE_N
 ###########################
 echo zzzzzzz openssl
-PACKAGE=openssl-1.1.1a.tar.gz setvar
+PACKAGE=openssl-1.1.1c.tar.gz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
+
+sed -i '/\} data/s/ =.*$/;\n    memset(\&data, 0, sizeof(data));/' \
+  crypto/rand/rand_lib.c
 
 ./config --prefix=/tools		\
 	--openssldir=/tools/etc/ssl 	\
@@ -954,7 +941,7 @@ rm make-ca.sh-20170514 #sed can be once
 
 ###########################
 echo zzzzzzzzzzz wget
-PACKAGE=wget-1.20.1.tar.gz setvar
+PACKAGE=wget-1.20.3.tar.gz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
