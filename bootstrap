@@ -638,14 +638,9 @@ PACKAGE=gettext-0.20.1.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
-cd gettext-tools
 ./configure --prefix=/tools --disable-shared
 
-make -C gnulib-lib
-make -C intl pluralx.c
-make -C src msgfmt
-make -C src msgmerge
-make -C src xgettext
+make
 
 cp -v src/{msgfmt,msgmerge,xgettext} /tools/bin
 
