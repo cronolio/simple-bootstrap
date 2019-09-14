@@ -284,7 +284,7 @@ PATH=/tools/cross/bin:${PATH}       \
     --disable-nls                   \
     --disable-libstdcxx-threads     \
     --disable-libstdcxx-pch         \
-    --with-gxx-include-dir=/tools/cross/$LFS_TGT/include/c++/8.2.0
+    --with-gxx-include-dir=/tools/cross/$LFS_TGT/include/c++/9.2.0
 
 PATH=/tools/cross/bin:${PATH} make
 PATH=/tools/cross/bin:${PATH} make install
