@@ -430,7 +430,7 @@ rm -rf $PACKAGE_N
 
 ############################
 
-export CFLAGS="${CFLAGS} -nostdinc -I/tools/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include -I/tools/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed -I/tools/include"
+export CFLAGS="${CFLAGS} -nostdinc -I/tools/lib/gcc/x86_64-pc-linux-gnu/9.2.0/include -I/tools/lib/gcc/x86_64-pc-linux-gnu/9.2.0/include-fixed -I/tools/include"
 
 ############################
 echo zzzzzzzz pkg-config
