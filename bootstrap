@@ -1105,7 +1105,7 @@ export PS1 LC_ALL CFLAGS CXXFLAGS LDFLAGS CHOST MAKEFLAGS PATH
 
 source /sources/environment
 
-mkdir -pv /{bin,boot,etc/{sysconfig},home,lib/firmware,mnt}
+mkdir -pv /{bin,boot,etc/{,sysconfig},home,lib/firmware,mnt}
 mkdir -pv /{media/{floppy,cdrom},sbin,srv,var}
 install -dv -m 0750 /root
 install -dv -m 1777 /tmp /var/tmp
