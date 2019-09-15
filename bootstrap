@@ -642,7 +642,7 @@ cd $PACKAGE_N
 
 make
 
-cp -v src/{msgfmt,msgmerge,xgettext} /tools/bin
+cp -v gettext-tools/src/{msgfmt,msgmerge,xgettext} /tools/bin
 
 cd /tools/bin
 ln -s msgfmt gmsgfmt
