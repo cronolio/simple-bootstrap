@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # based on
-# http://www.linuxfromscratch.org/lfs/view/8.1-systemd/
+# http://www.linuxfromscratch.org/lfs/view/9.0-systemd/
+# http://port70.net/~nsz/musl/gcc-9.1.0/
+# http://git.savannah.gnu.org/cgit/dragora.git/tree/
 
 run_default(){
 
@@ -23,9 +25,10 @@ chmod -v a+wt $LFS/sources
 if [[ ! -f $LFS/sources/fich ]]; then
 	rm -rf $LFS/sources/*
 
-	cp -v $runpath/wget-list $LFS/sources
-	cp -v $runpath/md5sums $LFS/sources
-	cp -v $runpath/no-gentoo.patch $LFS/sources
+	cp -v  $runpath/wget-list $LFS/sources
+	cp -v  $runpath/md5sums $LFS/sources
+	cp -v  $runpath/no-gentoo.patch $LFS/sources
+	cp -rv $runpath/patches $LFS/sources
 
 	if [[ ! -f $LFS/sources/wget-list || ! -f $LFS/sources/md5sums ]]; then
 		echo "no wget or md5sum file"
@@ -76,17 +79,19 @@ PS1="\u:\w\$ "
 LFS=/mnt/lfs
 source_dir=$LFS/sources
 LC_ALL=POSIX
-LFS_TGT=x86_64-lfs-linux-gnu
+LFS_CROSS=$(echo ${MACHTYPE} | sed "s/-[^-]*/-cross/")
+LFS_HOST=$(echo ${MACHTYPE})
+LFS_TGT=x86_64-linux-musl
+LFS_ARCH="x86_64"
 CFLAGS="-march=core2 -O2 -pipe"
 CXXFLAGS="-march=core2 -O2 -pipe"
 LDFLAGS="-Wl,-O1 -Wl,--as-needed"
 MAKEFLAGS="-j 2"
-PATH=/tools/bin:/bin:/usr/bin
-export PS1 LFS source_dir LC_ALL LFS_TGT CFLAGS CXXFLAGS LDFLAGS MAKEFLAGS PATH
+PATH=/tools/bin:/tools/cross-tools/bin:/bin:/usr/bin
+export PS1 LFS source_dir LC_ALL LFS_HOST LFS_TGT LFS_CROSS LFS_HOST LFS_ARCH CFLAGS CXXFLAGS LDFLAGS MAKEFLAGS PATH
 ' > "$runpath"/environment
 
 echo "bootstraping will be continue from lfs user"
-
 }
 
 setvar(){
@@ -103,7 +108,7 @@ su lfs $0 from-user
 from_user(){
 echo "continue from $USER user"
 
-REQENV="REQENV HOME USER TERM LS_COLORS PS1 LFS source_dir LC_ALL LFS_TGT CFLAGS CXXFLAGS LDFLAGS MAKEFLAGS PATH runpath"
+REQENV="REQENV HOME USER TERM LS_COLORS PS1 LFS source_dir LC_ALL LFS_HOST LFS_CROSS LFS_TGT LFS_ARCH CFLAGS CXXFLAGS LDFLAGS MAKEFLAGS PATH runpath"
 
 for C in $(printenv | cut -d '=' -f 1); do
 #   echo $C
@@ -119,6 +124,14 @@ echo "LFS is $LFS"
 cd $LFS/sources
 
 #####################
+case $(uname -m) in
+  x86_64) mkdir -pv /tools/lib && ln -sv lib /tools/lib64 ;;
+esac
+
+case $(uname -m) in
+  x86_64) mkdir -pv /tools/cross-tools/lib && ln -sv lib /tools/cross-tools/lib64 ;;
+esac
+#####################
 echo zzzzzzzzzz binutils 1 step
 PACKAGE=binutils-2.32.tar.xz setvar
 
@@ -133,20 +146,23 @@ cd $PACKAGE_N
 mkdir -v build
 cd build
 
-../configure --prefix=/tools/cross      \
-             --with-sysroot=$LFS        \
-             --with-lib-path=/tools/lib \
-             --target=$LFS_TGT          \
-             --disable-nls              \
-             --disable-werror
+../configure --prefix=/tools/cross-tools         \
+             --with-sysroot=$LFS                 \
+             --with-lib-path=/tools/lib          \
+             --target=$LFS_TGT                   \
+             --disable-nls                       \
+             --disable-werror                    \
+             --disable-multilib                  \
+             --enable-deterministic-archives     \
+             --disable-separate-code             \
+             --disable-compressed-debug-sections \
+             --disable-ppl-version-check         \
+             --disable-cloog-version-check
 
-make
+make MAKEINFO="true" configure-host
+make MAKEINFO="true"
 
-case $(uname -m) in
-  x86_64) mkdir -v /tools/lib && ln -sv lib /tools/lib64 ;;
-esac
-
-make install
+make MAKEINFO="true" install
 
 cd $source_dir
 echo -n "removing... "
@@ -170,6 +186,44 @@ tar -xf ../gmp-6.1.2.tar.xz
 mv -v gmp-6.1.2 gmp
 tar -xf ../mpc-1.1.0.tar.gz
 mv -v mpc-1.1.0 mpc
+
+cd mpfr
+for file in $source_dir/patches/mpfr/*.patch ; do
+  if test -f $file; then
+    rm -f PATCHES
+    patch -p1 < $file
+  fi
+done
+unset file
+
+cd $source_dir/$PACKAGE_N
+
+for directory in gmp mpfr mpc; do
+  if [[ "$directory" = 'gmp' ]]; then
+    cp -f "$source_dir"/patches/common/config.guess gmp/configfsf.guess
+    cp -f "$source_dir"/patches/common/config.sub gmp/config.sub
+  else
+    cp -f "$source_dir"/patches/common/config.guess "$directory"/config.guess
+    cp -f "$source_dir"/patches/common/config.sub "$directory"/config.sub
+  fi
+done
+unset directory
+
+# Apply specific patches for the support in musl.
+# http://port70.net/~nsz/musl/gcc-9.1.0/
+patch -Np1 -i "$source_dir/patches/gcc/230-musl_libssp.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0002-posix_memalign.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0003-libatomic-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0004-libgomp-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0005-libitm-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0006-libvtv-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0007-j2.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0008-s390x-muslldso.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0009-microblaze-pr65649.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0010-ldbl128-config.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0011-m68k.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0012-static-pie.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0013-invalid-tls-model.patch"
 
 for file in gcc/config/{linux,i386/linux{,64}}.h
 do
@@ -195,30 +249,37 @@ mkdir -v build
 cd       build
 
 ../configure                                       \
-    --target=$LFS_TGT                              \
-    --prefix=/tools/cross                          \
-    --with-glibc-version=2.11                      \
-    --with-sysroot=$LFS                            \
-    --with-newlib                                  \
-    --without-headers                              \
+    --target=${LFS_TGT}                            \
+    --prefix=/tools/cross-tools                    \
+    --with-sysroot=${LFS}                          \
     --with-local-prefix=/tools                     \
     --with-native-system-header-dir=/tools/include \
+    --enable-clocale=generic                       \
     --disable-nls                                  \
     --disable-shared                               \
     --disable-multilib                             \
     --disable-decimal-float                        \
     --disable-threads                              \
     --disable-libatomic                            \
+    --disable-libitm                               \
+    --disable-libcilkrts                           \
+    --disable-libstdcxx                            \
+    --disable-gnu-indirect-function                \
     --disable-libgomp                              \
     --disable-libmpx                               \
     --disable-libquadmath                          \
     --disable-libssp                               \
     --disable-libvtv                               \
-    --disable-libstdcxx                            \
-    --enable-languages=c,c++
+    --disable-libmudflap                           \
+    --disable-libsanitizer                         \
+    --with-newlib                                  \
+    --without-headers                              \
+    --without-ppl                                  \
+    --without-cloog                                \
+    --enable-languages=c
 
-make
-make install
+make all-gcc all-target-libgcc
+make install-gcc install-target-libgcc
 
 cd $source_dir
 
@@ -242,58 +303,165 @@ cd $source_dir
 rm -rf $PACKAGE_N
 
 #########################################
-### glibc
-PACKAGE=glibc-2.30.tar.xz setvar
+### musl
+PACKAGE=musl-1.1.24.tar.gz setvar
 echo -n "extracting... "
 tar -xf $PACKAGE_A
 echo "done"
 cd $PACKAGE_N
 
-mkdir -v build
-cd       build
-
-../configure                             \
-      --prefix=/tools                    \
-      --host=$LFS_TGT                    \
-      --build=$(../scripts/config.guess) \
-      --enable-kernel=3.2                \
-      --with-headers=/tools/include
+./configure                       \
+      CC="${LFS_TGT}-gcc"         \
+      CROSS_COMPILE=${LFS_TGT}-   \
+      --prefix=/tools             \
+      --syslibdir=/tools/lib      \
+      --target=$LFS_TGT           \
+      --includedir=/tools/include \
+      --disable-static
 
 make -j1
 make install
 
+${LFS_TGT}-gcc -c "$source_dir"/patches/gcc/__stack_chk_fail_local.c -o __stack_chk_fail_local.o
+${LFS_TGT}-ar rc libssp_nonshared.a __stack_chk_fail_local.o
+${LFS_TGT}-ranlib libssp_nonshared.a
+cp -p libssp_nonshared.a /tools/lib
+
 cd $source_dir
 rm -rf $PACKAGE_N
 
-###############################
-echo libstdc++ part of gcc
+#################################################
+echo test
+echo 'int main(){}' > dummy.c
+x86_64-linux-musl-gcc dummy.c
+x86_64-linux-musl-readelf -l a.out
+rm -v a.out dummy.c
+
+#################################################
+echo zzzzzzzz gcc cross step 2
 PACKAGE=gcc setvar
+echo "arhive $PACKAGE_A"
+echo "name $PACKAGE_N"
+
 echo -n "extracting... "
 tar -xf $PACKAGE_A
 echo "done"
+
 cd $PACKAGE_N
+
+tar -xf ../mpfr-4.0.2.tar.xz
+mv -v mpfr-4.0.2 mpfr
+tar -xf ../gmp-6.1.2.tar.xz
+mv -v gmp-6.1.2 gmp
+tar -xf ../mpc-1.1.0.tar.gz
+mv -v mpc-1.1.0 mpc
+
+cd mpfr
+for file in $source_dir/patches/mpfr/* ; do
+  if test -f $file; then
+    rm -f PATCHES
+    patch -p1 < $file
+  fi
+done
+unset file
+cd $source_dir/$PACKAGE_N
+
+for directory in gmp mpfr mpc; do
+  if [[ "$directory" = 'gmp' ]]; then
+    cp -f "$source_dir"/patches/common/config.guess gmp/configfsf.guess
+    cp -f "$source_dir"/patches/common/config.sub gmp/config.sub
+  else
+    cp -f "$source_dir"/patches/common/config.guess "$directory"/config.guess
+    cp -f "$source_dir"/patches/common/config.sub "$directory"/config.sub
+  fi
+done
+unset directory
+
+# Apply specific patches for the support in musl.
+# http://port70.net/~nsz/musl/gcc-9.1.0/
+
+patch -Np1 -i "$source_dir/patches/gcc/230-musl_libssp.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0002-posix_memalign.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0003-libatomic-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0004-libgomp-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0005-libitm-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0006-libvtv-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0007-j2.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0008-s390x-muslldso.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0009-microblaze-pr65649.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0010-ldbl128-config.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0011-m68k.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0012-static-pie.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0013-invalid-tls-model.patch"
+
+for file in gcc/config/{linux,i386/linux{,64}}.h
+do
+  cp -uv $file{,.orig}
+  sed -e 's@/lib\(64\)\?\(32\)\?/ld@/tools&@g' \
+      -e 's@/usr@/tools@g' $file.orig > $file
+  echo '
+#undef STANDARD_STARTFILE_PREFIX_1
+#undef STANDARD_STARTFILE_PREFIX_2
+#define STANDARD_STARTFILE_PREFIX_1 "/tools/lib/"
+#define STANDARD_STARTFILE_PREFIX_2 ""' >> $file
+  touch $file.orig
+done
+
+case $(uname -m) in
+  x86_64)
+    sed -e '/m64=/s/lib64/lib/' \
+        -i.orig gcc/config/i386/t-linux64
+ ;;
+esac
 
 mkdir -v build
 cd       build
 
-PATH=/tools/cross/bin:${PATH}       \
-../libstdc++-v3/configure           \
-    --host=$LFS_TGT                 \
-    --prefix=/tools                 \
-    --disable-multilib              \
-    --disable-nls                   \
-    --disable-libstdcxx-threads     \
-    --disable-libstdcxx-pch         \
-    --with-gxx-include-dir=/tools/cross/$LFS_TGT/include/c++/9.2.0
+../configure                                       \
+    --target=${LFS_TGT}                            \
+    --prefix=/tools/cross-tools                    \
+    --with-sysroot=${LFS}                          \
+    --with-local-prefix=/tools                     \
+    --with-native-system-header-dir=/tools/include \
+    --disable-multilib                             \
+    --enable-languages=c,c++                       \
+    --enable-clocale=generic                       \
+    --enable-tls                                   \
+    --enable-libstdcxx-time                        \
+    --enable-checking=release                      \
+    --enable-fully-dynamic-string                  \
+    --enable-libssp                                \
+    --disable-symvers                              \
+    --disable-gnu-indirect-function                \
+    --disable-libmudflap                           \
+    --disable-libsanitizer                         \
+    --disable-libmpx                               \
+    --disable-nls                                  \
+    --disable-lto-plugin
 
-PATH=/tools/cross/bin:${PATH} make
-PATH=/tools/cross/bin:${PATH} make install
+make AS_FOR_TARGET="${LFS_TGT}-as" LD_FOR_TARGET="${LFS_TGT}-ld" all
+make install
+
+${LFS_TGT}-gcc -c "$source_dir"/patches/gcc/__stack_chk_fail_local.c -o __stack_chk_fail_local.o
+${LFS_TGT}-ar rc libssp_nonshared.a __stack_chk_fail_local.o
+${LFS_TGT}-ranlib libssp_nonshared.a
+cp -p libssp_nonshared.a /tools/lib
 
 cd $source_dir
+
 rm -rf $PACKAGE_N
 
-###############################
-echo binutils step 2
+#################################################
+echo test
+echo 'int main(){}' > dummy.c
+x86_64-linux-musl-gcc dummy.c
+x86_64-linux-musl-readelf -l a.out
+rm -v a.out dummy.c
+
+###############################################################
+echo stage2 stage2 stage2
+###############################################################
+echo binutils stage2
 PACKAGE=binutils-2.32.tar.xz setvar
 echo -n "extracting... "
 tar -xf $PACKAGE_A
@@ -301,40 +469,97 @@ echo "done"
 cd $PACKAGE_N
 
 mkdir -v build
-cd       build
+cd	 build
 
-PATH=/tools/cross/bin:${PATH}  \
-CC=$LFS_TGT-gcc                \
-AR=$LFS_TGT-ar                 \
-RANLIB=$LFS_TGT-ranlib         \
 ../configure                   \
+    --target=${LFS_TGT}        \
+    --build=${LFS_TGT}         \
+    --host=${LFS_TGT}          \
     --prefix=/tools            \
-    --disable-nls              \
-    --disable-werror           \
     --with-lib-path=/tools/lib \
-    --with-sysroot
+    --with-sysroot             \
+    --enable-deterministic-archives \
+    --enable-relro             \
+    --enable-threads=auto      \
+    --enable-64-bit-bfd        \
+    --enable-initfini-array    \
+    --disable-separate-code    \
+    --disable-compressed-debug-sections \
+    --disable-nls \
+    --disable-werror \
+    --disable-ppl-version-check \
+    --disable-cloog-version-check
 
-unset CC AR RANLIB
+make MAKEINFO="true"
+make MAKEINFO="true" install
 
-PATH=/tools/cross/bin:${PATH} make
-PATH=/tools/cross/bin:${PATH} make install
-
-PATH=/tools/cross/bin:${PATH} make -C ld clean
-PATH=/tools/cross/bin:${PATH} make -C ld LIB_PATH=/lib:/usr/lib
+make -C ld clean
+make -C ld LIB_PATH=/lib:/usr/lib
 cp -v ld/ld-new /tools/bin
 
 cd $source_dir
 rm -rf $PACKAGE_N
+
 ############################
-echo zzzzzzzz gcc step 2
+echo zzzzzzzz gcc stege2
 PACKAGE=gcc setvar
 echo -n "extracting... "
 tar -xf $PACKAGE_A
 echo "done"
 cd $PACKAGE_N
 
+tar -xf ../mpfr-4.0.2.tar.xz
+mv -v mpfr-4.0.2 mpfr
+tar -xf ../gmp-6.1.2.tar.xz
+mv -v gmp-6.1.2 gmp
+tar -xf ../mpc-1.1.0.tar.gz
+mv -v mpc-1.1.0 mpc
+
+${LFS_TGT}-gcc -c "$source_dir"/patches/gcc/__stack_chk_fail_local.c -o __stack_chk_fail_local.o
+${LFS_TGT}-ar rc libssp_nonshared.a __stack_chk_fail_local.o
+${LFS_TGT}-ranlib libssp_nonshared.a
+cp -p libssp_nonshared.a /tools/lib
+
+cd mpfr
+for file in $source_dir/patches/mpfr/*.patch ; do
+  if test -f $file; then
+    rm -f PATCHES
+    patch -p1 < $file
+  fi
+done
+unset file
+
+cd $source_dir/$PACKAGE_N
+
+for directory in gmp mpfr mpc; do
+  if [[ "$directory" = 'gmp' ]]; then
+    cp -f "$source_dir"/patches/common/config.guess gmp/configfsf.guess
+    cp -f "$source_dir"/patches/common/config.sub gmp/config.sub
+  else
+    cp -f "$source_dir"/patches/common/config.guess "$directory"/config.guess
+    cp -f "$source_dir"/patches/common/config.sub "$directory"/config.sub
+  fi
+done
+unset directory
+
+# Apply specific patches for the support in musl.
+# http://port70.net/~nsz/musl/gcc-9.1.0/
+patch -Np1 -i "$source_dir/patches/gcc/230-musl_libssp.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0002-posix_memalign.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0003-libatomic-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0004-libgomp-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0005-libitm-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0006-libvtv-test-fix.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0007-j2.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0008-s390x-muslldso.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0009-microblaze-pr65649.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0010-ldbl128-config.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0011-m68k.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0012-static-pie.patch"
+patch -Np1 -i "$source_dir/patches/gcc/0013-invalid-tls-model.patch"
+
 cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \
-  `dirname $(PATH=/tools/cross/bin:${PATH} $LFS_TGT-gcc -print-libgcc-file-name)`/include-fixed/limits.h
+  `dirname $(${LFS_TGT}-gcc -print-libgcc-file-name)`/include-fixed/limits.h
 
 for file in gcc/config/{linux,i386/linux{,64}}.h
 do
@@ -356,875 +581,67 @@ case $(uname -m) in
   ;;
 esac
 
-tar -xf ../mpfr-4.0.2.tar.xz
-mv -v mpfr-4.0.2 mpfr
-tar -xf ../gmp-6.1.2.tar.xz
-mv -v gmp-6.1.2 gmp
-tar -xf ../mpc-1.1.0.tar.gz
-mv -v mpc-1.1.0 mpc
-
 mkdir -v build
 cd       build
 
-PATH=/tools/cross/bin:${PATH}                      \
-CC=$LFS_TGT-gcc                                    \
-CXX=$LFS_TGT-g++                                   \
-AR=$LFS_TGT-ar                                     \
-RANLIB=$LFS_TGT-ranlib                             \
 ../configure                                       \
+    --target=${LFS_TGT}                            \
+    --build=${LFS_TGT}                             \
+    --host=${LFS_TGT}                              \
     --prefix=/tools                                \
     --with-local-prefix=/tools                     \
     --with-native-system-header-dir=/tools/include \
     --enable-languages=c,c++                       \
-    --disable-libstdcxx-pch                        \
     --disable-multilib                             \
+    --enable-clocale=generic                       \
+    --enable-cet=auto                              \
+    --enable-tls                                   \
+    --enable-libstdcxx-time                        \
+    --enable-install-libiberty                     \
+    --enable-fully-dynamic-string                  \
+    --enable-default-ssp                           \
+    --enable-default-pie                           \
+    --enable-libssp                                \
+    --disable-symvers                              \
     --disable-bootstrap                            \
-    --disable-libgomp
+    --disable-libstdcxx-pch                        \
+    --disable-gnu-indirect-function                \
+    --disable-libmudflap                           \
+    --disable-libsanitizer                         \
+    --disable-nls
 
-unset CC CXX AR RANLIB
-
-PATH=/tools/cross/bin:${PATH} make
-PATH=/tools/cross/bin:${PATH} make install
+make
+make install
 
 ln -sv gcc /tools/bin/cc
 
+which gcc
+which ar
+which ranlib
+
+${LFS_TGT}-gcc -c "$source_dir"/patches/gcc/__stack_chk_fail_local.c -o __stack_chk_fail_local.o
+${LFS_TGT}-ar rc libssp_nonshared.a __stack_chk_fail_local.o
+${LFS_TGT}-ranlib libssp_nonshared.a
+cp -p libssp_nonshared.a /tools/lib
+
 cd $source_dir
 rm -rf $PACKAGE_N && echo "removing done"
-pwd
 
 ############################
 ############################
-echo zzzzzzzz check compiler and linker from cross
+export PATH=/tools/bin:/bin:/usr/bin
 
+echo zzzzzzzz check native compiler and linker
+
+which cc
+which readelf
 echo 'int main(){}' > dummy.c
 cc dummy.c
 readelf -l a.out | grep ': /tools'
 
 rm -v dummy.c a.out
 
-############################
-echo libstdc++ part of gcc with native compiler
-PACKAGE=gcc setvar
-echo -n "extracting... "
-tar -xf $PACKAGE_A
-echo "done"
-cd $PACKAGE_N
 
-mkdir -v build
-cd	 build
 
-../libstdc++-v3/configure           \
-    --prefix=/tools                 \
-    --includedir=/tools/include     \
-    --disable-multilib              \
-    --disable-nls                   \
-    --disable-libstdcxx-threads     \
-    --disable-libstdcxx-pch
 
-make
-make install
 
-cd $source_dir
-rm -rf $PACKAGE_N
-
-
-############################
-
-export CFLAGS="${CFLAGS} -nostdinc -I/tools/lib/gcc/x86_64-pc-linux-gnu/9.2.0/include -I/tools/lib/gcc/x86_64-pc-linux-gnu/9.2.0/include-fixed -I/tools/include"
-
-############################
-echo zzzzzzzz pkg-config
-PACKAGE=pkg-config-0.29.2.tar.gz setvar
-echo -n "extracting... "
-tar -xf $PACKAGE_A
-echo "done"
-cd $PACKAGE_N
-
-./configure --prefix=/tools	\
-	--enable-shared		\
-	--with-internal-glib	\
-	--disable-static	\
-	--disable-host-tool
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-
-echo zzzzzzzz ncurses
-PACKAGE=ncurses-6.1.tar.gz setvar
-echo -n "extracting... "
-tar -xf $PACKAGE_A
-echo "done"
-cd $PACKAGE_N
-
-sed -i s/mawk// configure
-
-./configure --prefix=/tools	\
-	--enable-colorfgbg	\
-	--enable-ext-mouse	\
-	--with-cxx-shared	\
-	--with-shared		\
-	--without-debug		\
-	--without-tests		\
-	--without-ada		\
-	--without-normal	\
-	--enable-widec		\
-	--enable-ext-colors	\
-	--enable-overwrite	\
-	--enable-sigwinch	\
-	--enable-pc-files	\
-	--with-pkg-config=/tools/bin/pkg-config \
-	--with-pkg-config-libdir=/tools/lib/pkgconfig	\
-	--enable-pthreads-eintr
-
-make
-make install
-
-for lib in ncurses form panel menu ; do
-    rm -vf                    /tools/lib/lib${lib}.so
-    echo "INPUT(-l${lib}w)" > /tools/lib/lib${lib}.so
-    ln -sfv ${lib}w.pc        /tools/lib/pkgconfig/${lib}.pc
-done
-
-rm -vf                     /tools/lib/libcursesw.so
-echo "INPUT(-lncursesw)" > /tools/lib/libcursesw.so
-ln -sfv libncurses.so      /tools/lib/libcurses.so
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-echo zzzzzzzzzz readline
-PACKAGE=readline-8.0.tar.gz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-sed -i '/MV.*old/d' Makefile.in
-sed -i '/{OLDSUFF}/c:' support/shlib-install
-
-./configure --prefix=/tools  \
-            --disable-static
-
-make SHLIB_LIBS="-L/tools/lib -lncursesw"
-
-make SHLIB_LIBS="-L/tools/lib -lncurses" install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-echo zzzzzzzz bash
-PACKAGE=bash-5.0.tar.gz setvar
-echo -n "extracting... "
-tar -xf $PACKAGE_A
-echo "done"
-cd $PACKAGE_N
-
-./configure --prefix=/tools	\
-	--without-bash-malloc	\
-	--with-installed-readline
-
-make
-make install
-ln -sv bash /tools/bin/sh
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz bison
-PACKAGE=bison-3.4.1.tar.xz setvar
-echo -n "extracting... "
-tar -xf $PACKAGE_A
-echo "done"
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz coreutils
-PACKAGE=coreutils-8.31.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools --enable-install-program=hostname
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz diffutils
-PACKAGE=diffutils-3.7.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz file
-PACKAGE=file-5.37.tar.gz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz findutils
-PACKAGE=findutils-4.6.0.tar.gz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-sed -i 's/IO_ftrylockfile/IO_EOF_SEEN/' gl/lib/*.c
-sed -i '/unistd/a #include <sys/sysmacros.h>' gl/lib/mountlist.c
-echo "#define _IO_IN_BACKUP 0x100" >> gl/lib/stdio-impl.h
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz gawk
-PACKAGE=gawk-5.0.1.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz gettext
-PACKAGE=gettext-0.20.1.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools --disable-shared
-
-make
-
-cp -v gettext-tools/src/{msgfmt,msgmerge,xgettext} /tools/bin
-
-cd /tools/bin
-ln -s msgfmt gmsgfmt
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz grep
-PACKAGE=grep-3.3.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz gzip
-PACKAGE=gzip-1.10.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz m4
-PACKAGE=m4-1.4.18.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-sed -i 's/IO_ftrylockfile/IO_EOF_SEEN/' lib/*.c
-echo "#define _IO_IN_BACKUP 0x100" >> lib/stdio-impl.h
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz make
-PACKAGE=make-4.2.1.tar.gz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-sed -i '211,217 d; 219,229 d; 232 d' glob/glob.c
-
-./configure --prefix=/tools --without-guile
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz patch
-PACKAGE=patch-2.7.6.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz perl
-PACKAGE=perl-5.30.0.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-sh Configure -des -Dprefix=/tools -Dlibs=-lm -Uloclibpth -Ulocincpth
-
-make
-
-cp -v perl cpan/podlators/scripts/pod2man /tools/bin
-mkdir -pv /tools/lib/perl5/5.30.0
-cp -Rv lib/* /tools/lib/perl5/5.30.0
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz sed
-PACKAGE=sed-4.7.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz tar
-PACKAGE=tar-1.32.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz texinfo
-PACKAGE=texinfo-6.6.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools --disable-perl-xs
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz util-linux
-PACKAGE=util-linux-2.34.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools                \
-            --without-python               \
-            --disable-makeinstall-chown    \
-            --without-systemdsystemunitdir \
-            --without-ncurses              \
-            PKG_CONFIG=""
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo zzzzzzzz xz
-PACKAGE=xz-5.2.4 setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-
-############################
-############################
-echo adition tools
-############################
-echo zzzzzzzzz pcre
-PACKAGE=pcre-8.43 setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools		\
-	--enable-unicode-properties	\
-	--enable-pcre16			\
-	--enable-pcre32			\
-	--enable-pcretest-libreadline
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-############################
-echo zzzzzzzzz zlib
-PACKAGE=zlib-1.2.11.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-############################
-echo zzzzzzzzzzz nano
-PACKAGE=nano-4.4.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools	\
-	--sysconfdir=/tools/etc	\
-	--disable-extra		\
-	--enable-color		\
-	--enable-utf8		\
-
-make
-make install
-
-install -v -m644 doc/sample.nanorc /tools/etc/nanorc
-sed -i 's/# set tabsize 8/set tabsize 4/g' /tools/etc/nanorc
-sed -i 's/# include "\/tools\/share\/nano\/\*\.nanorc"/include "\/tools\/share\/nano\/\*\.nanorc"/g' /tools/etc/nanorc
-
-cd $source_dir
-rm -rf $PACKAGE_N
-############################
-echo zzzzzzzzzz bc
-PACKAGE=bc-2.1.3.tar.gz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-PREFIX=/tools CC=gcc CFLAGS="-std=c99" ./configure.sh -G -O3
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-###########################
-echo zzzzzzz openssl
-PACKAGE=openssl-1.1.1c.tar.gz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-sed -i '/\} data/s/ =.*$/;\n    memset(\&data, 0, sizeof(data));/' \
-  crypto/rand/rand_lib.c
-
-./config --prefix=/tools		\
-	--openssldir=/tools/etc/ssl 	\
-	--libdir=lib			\
-	shared				\
-	zlib-dynamic
-
-make
-sed -i 's# libcrypto.a##;s# libssl.a##;/INSTALL_LIBS/s#libcrypto.a##' Makefile
-make MANSUFFIX=ssl install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-###########################
-echo zzzzzzzz ca-certs
-
-if [ -f make-ca.sh-20170514 ]; then
-	rm make-ca.sh-20170514 #sed can be once
-fi
-if [ ! -f certdata.txt ]; then
-	wget https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt
-fi
-
-wget http://anduin.linuxfromscratch.org/BLFS/other/make-ca.sh-20170514
-
-sed -i 's/\/etc/\/tools\/etc/g' make-ca.sh-20170514
-chmod u+x make-ca.sh-20170514
-
-./make-ca.sh-20170514
-
-rm make-ca.sh-20170514 #sed can be once
-
-###########################
-echo zzzzzzzzzzz wget
-PACKAGE=wget-1.20.3.tar.gz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools	\
-	--sysconfdir=/tools/etc \
-	--disable-debug		\
-	--with-openssl		\
-	--with-ssl=openssl	\
-	--disable-ipv6
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-############################
-echo zzzzzzzzzzz shadow
-PACKAGE=shadow-4.7.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-sed -i 's/groups$(EXEEXT) //' src/Makefile.in
-find man -name Makefile.in -exec sed -i 's/groups\.1 / /'   {} \;
-find man -name Makefile.in -exec sed -i 's/getspnam\.3 / /' {} \;
-find man -name Makefile.in -exec sed -i 's/passwd\.5 / /'   {} \;
-
-sed -i -e 's@#ENCRYPT_METHOD DES@ENCRYPT_METHOD SHA512@' \
-       -e 's@/var/spool/mail@/var/mail@' etc/login.defs
-
-sed -i 's/1000/999/' etc/useradd
-
-./configure --prefix=/tools --sysconfdir=/tools/etc --with-group-name-max-length=32
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-############################
-echo zzzzzzzzzzz autoconf-archive
-PACKAGE=autoconf-archive-2019.01.06.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-############################
-echo zzzzzzzzzzz libtool
-PACKAGE=libtool-2.4.6.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools \
-	--disable-static
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-############################
-echo zzzzzzzzzzz autoconf
-PACKAGE=autoconf-2.69.tar.xz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-./configure --prefix=/tools
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-############################
-echo zzzzzzzzzzz sandbox
-PACKAGE=sandbox-2.13.tar.gz setvar
-tar -xf $PACKAGE_A
-cd $PACKAGE_N
-
-patch -p0 <../no-gentoo.patch
-./autogen.sh
-./configure --prefix=/tools \
-            --disable-static
-
-make
-make install
-
-cd $source_dir
-rm -rf $PACKAGE_N
-######################################################################################
-###### stripping # stripping can fail with wrong files, we will disable 'set -e'
-set +e
-echo stripping
-rm -rf /tools/cross
-strip --strip-debug /tools/lib/*
-/usr/bin/strip --strip-unneeded /tools/{,s}bin/*
-
-rm -rf /tools/{,share}/{info,man,doc}
-
-}
-
-
-from_root(){
-
-echo "now from root"
-
-export LFS=/mnt/lfs
-runpath=$(pwd)
-
-echo $LFS
-chown -R root:root $LFS/tools
-
-mkdir -pv $LFS/{dev,proc,sys,run}
-
-mknod -m 600 $LFS/dev/console c 5 1
-mknod -m 666 $LFS/dev/null c 1 3
-
-mount -v --bind /dev $LFS/dev
-
-mount -vt devpts devpts $LFS/dev/pts -o gid=5,mode=620
-mount -vt proc proc $LFS/proc
-mount -vt sysfs sysfs $LFS/sys
-mount -vt tmpfs tmpfs $LFS/run
-
-if [ -h $LFS/dev/shm ]; then
-  mkdir -pv $LFS/$(readlink $LFS/dev/shm)
-fi
-
-}
-
-continue_from_chroot(){
-export LFS=/mnt/lfs
-export runpath=$(pwd)
-export LC_ALL=POSIX
-me=$(basename "$0")
-echo $me
-
-cat "$runpath/$me" > $LFS/sources/$me
-chmod -v u+x $LFS/sources/$me
-sed -i 's/#!\/bin\/bash/#!\/tools\/bin\/bash/g' $LFS/sources/$me
-
-/tools/bin/env -i	\
-HOME=/root		\
-TERM="$TERM"		\
-PS1='\u:\w\$ '		\
-PATH=/bin:/usr/bin:/sbin:/usr/sbin:/tools/bin \
-chroot "$LFS" sources/$me from-chroot
-}
-
-from_chroot(){
-echo 'set +h
-PS1="\u:\w\$ "
-LC_ALL=POSIX
-CFLAGS="-march=core2 -O2 -pipe"
-CXXFLAGS="-march=core2 -O2 -pipe"
-LDFLAGS="-Wl,-O1 -Wl,--as-needed"
-CHOST="x86_64-pc-linux-gnu"
-MAKEFLAGS="-j 2"
-PATH=/bin:/usr/bin:/sbin:/usr/sbin:/tools/bin:/tools/sbin
-export PS1 LC_ALL CFLAGS CXXFLAGS LDFLAGS CHOST MAKEFLAGS PATH
-' > /sources/environment
-
-source /sources/environment
-
-mkdir -pv /{bin,boot,etc/{,sysconfig},home,lib/firmware,mnt}
-mkdir -pv /{media/{floppy,cdrom},sbin,srv,var}
-install -dv -m 0750 /root
-install -dv -m 1777 /tmp /var/tmp
-
-mkdir -pv /usr/{bin,include,lib,sbin,src}
-mkdir -pv /usr/share/{color,dict,doc,info,locale,man}
-mkdir -v  /usr/share/{misc,terminfo,zoneinfo}
-mkdir -v  /usr/libexec
-mkdir -pv /usr/share/man/man{1..8}
-
-case $(uname -m) in
- x86_64) mkdir -v /lib64 ;;
-esac
-
-mkdir -v /var/{log,mail,spool}
-ln -sv /run /var/run
-ln -sv /run/lock /var/lock
-mkdir -pv /var/{cache,lib/{color,misc,locate}}
-
-ln -sv /tools/bin/{bash,cat,dd,echo,ln,pwd,rm,stty} /bin
-ln -sv /tools/bin/{install,perl} /usr/bin
-ln -sv /tools/lib/libgcc_s.so{,.1} /usr/lib
-ln -sv /tools/lib/libstdc++.{a,so{,.6}} /usr/lib
-sed 's/tools/usr/' /tools/lib/libstdc++.la > /usr/lib/libstdc++.la
-for lib in blkid lzma mount uuid
-do
-    ln -sv /tools/lib/lib$lib.{a,so*} /usr/lib
-    sed 's/tools/usr/' /tools/lib/lib${lib}.la > /usr/lib/lib${lib}.la
-done
-
-ln -sv bash /bin/sh
-
-ln -sv /proc/self/mounts /etc/mtab
-
-cat > /etc/passwd << "EOF"
-root:x:0:0:root:/root:/bin/bash
-bin:x:1:1:bin:/dev/null:/bin/false
-daemon:x:6:6:Daemon User:/dev/null:/bin/false
-messagebus:x:18:18:D-Bus Message Daemon User:/var/run/dbus:/bin/false
-systemd-bus-proxy:x:72:72:systemd Bus Proxy:/:/bin/false
-systemd-journal-gateway:x:73:73:systemd Journal Gateway:/:/bin/false
-systemd-journal-remote:x:74:74:systemd Journal Remote:/:/bin/false
-systemd-journal-upload:x:75:75:systemd Journal Upload:/:/bin/false
-systemd-network:x:76:76:systemd Network Management:/:/bin/false
-systemd-resolve:x:77:77:systemd Resolver:/:/bin/false
-systemd-timesync:x:78:78:systemd Time Synchronization:/:/bin/false
-systemd-coredump:x:79:79:systemd Core Dumper:/:/bin/false
-nobody:x:99:99:Unprivileged User:/dev/null:/bin/false
-EOF
-
-cat > /etc/group << "EOF"
-root:x:0:
-bin:x:1:daemon
-sys:x:2:
-kmem:x:3:
-tape:x:4:
-tty:x:5:
-daemon:x:6:
-floppy:x:7:
-disk:x:8:
-lp:x:9:
-dialout:x:10:
-audio:x:11:
-video:x:12:
-utmp:x:13:
-usb:x:14:
-cdrom:x:15:
-adm:x:16:
-messagebus:x:18:
-systemd-journal:x:23:
-input:x:24:
-mail:x:34:
-kvm:x:61:
-systemd-bus-proxy:x:72:
-systemd-journal-gateway:x:73:
-systemd-journal-remote:x:74:
-systemd-journal-upload:x:75:
-systemd-network:x:76:
-systemd-resolve:x:77:
-systemd-timesync:x:78:
-systemd-coredump:x:79:
-wheel:x:97:
-nogroup:x:99:
-users:x:999:
-EOF
-
-touch /var/log/{btmp,lastlog,faillog,wtmp}
-chgrp -v utmp /var/log/lastlog
-chmod -v 664  /var/log/lastlog
-chmod -v 600  /var/log/btmp
-
-pwconv
-grpconv
-
-echo "nameserver 8.8.8.8" > /etc/resolv.conf
-
-# required for first installation of glibc
-ln -sfv /tools/lib/gcc /usr/lib
-ln -sfv ../lib/ld-linux-x86-64.so.2 /lib64
-ln -sfv ../lib/ld-linux-x86-64.so.2 /lib64/ld-lsb-x86-64.so.3
-
-###
-# install simple
-###
-}
-
-
-#### body ####
-if [ $# -eq 0 ] ; then
-	run_default && continue_from_user && from_root && continue_from_chroot
-fi
-
-while [ $# -gt 0 ]; do
-case $1 in
-         -c)  continue_from_user    ;;
-         -r)  from_root             ;;
-	 -i)  continue_from_chroot  ;;
-  from-user)  from_user             ;;
-from-chroot)  from_chroot           ;;
-esac
-shift
-done
