@@ -188,7 +188,7 @@ tar -xf ../mpc-1.1.0.tar.gz
 mv -v mpc-1.1.0 mpc
 
 cd mpfr
-for file in $source_dir/patches/mpfr/*.patch ; do
+for file in $source_dir/patches/mpfr/* ; do
   if test -f $file; then
     rm -f PATCHES
     patch -p1 < $file
