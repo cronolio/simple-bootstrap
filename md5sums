@@ -7,7 +7,7 @@ f58fa8001d60c4c77595fbbb62b63c1d  gmp-6.1.2.tar.xz
 2b1dbdf27b28620752956c061d62f60c  glibc-2.30.tar.xz
 b26b5d7d844cb96c73ed2fb6d588daaf  tzdata2019b.tar.gz
 f6e931e319531b736fadc017f470e68a  pkg-config-0.29.2.tar.gz
-98c889aaf8d23910d2b92d65be2e737a  ncurses-6.1.tar.gz
+e812da327b1c2214ac1aed440ea3ae8d  ncurses-6.2.tar.gz
 7e6c1f16aee3244a69aba6e438295ca3  readline-8.0.tar.gz
 2b44b47b905be16f45709648f671820b  bash-5.0.tar.gz
 0d174cdaf85721c5723bf52355be41e6  binutils-2.32.tar.xz
