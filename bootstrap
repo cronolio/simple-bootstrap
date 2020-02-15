@@ -1525,7 +1525,7 @@ ln -sfv ../lib/ld-linux-x86-64.so.2 /lib64/ld-lsb-x86-64.so.3
 
 #### body ####
 if [ $# -eq 0 ] ; then
-	run_default && continue_from_user #&& from_root && continue_from_chroot
+	run_default && continue_from_user && from_root && continue_from_chroot
 fi
 
 while [ $# -gt 0 ]; do
@@ -1538,28 +1538,5 @@ from-chroot)  from_chroot           ;;
 esac
 shift
 done
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
