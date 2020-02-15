@@ -1306,6 +1306,9 @@ PACKAGE=autoconf-2.69.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
+cp -f "$source_dir"/patches/common/config.guess build-aux/config.guess
+cp -f "$source_dir"/patches/common/config.sub build-aux/config.sub
+
 ./configure --prefix=/tools \
     --target=${LFS_TGT}     \
     --build=${LFS_TGT}      \
