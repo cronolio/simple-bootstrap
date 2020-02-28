@@ -1123,10 +1123,7 @@ PACKAGE=zlib-1.2.11.tar.xz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
-./configure --prefix=/tools \
-    --target=${LFS_TGT}     \
-    --build=${LFS_TGT}      \
-    --host=${LFS_TGT}
+./configure --prefix=/tools
 
 make
 make install
