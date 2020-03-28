@@ -501,7 +501,7 @@ cd $source_dir
 rm -rf $PACKAGE_N
 
 ############################
-echo zzzzzzzz gcc stege2
+echo zzzzzzzz gcc stage2
 PACKAGE=gcc setvar
 echo -n "extracting... "
 tar -xf $PACKAGE_A
