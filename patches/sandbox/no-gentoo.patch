@@ -1,0 +1,126 @@
+--- libsbutil/sbutil.h	2018-03-23 03:34:26.284908833 +0500
++++ libsbutil/sbutil.h	2018-03-23 03:36:45.102088077 +0500
+@@ -22,7 +22,7 @@
+ #define LIB_NAME               "libsandbox.so"
+ #define BASHRC_NAME            "sandbox.bashrc"
+ #define TMPDIR                 "/tmp"
+-#define PORTAGE_TMPDIR         "/var/tmp/portage"
++#define SIMPLEBUILD_DIR         "/var/tmp/simple"
+ #define SANDBOX_LOG_LOCATION   "/var/log/sandbox"
+ #define LOG_FILE_PREFIX        "/sandbox-"
+ #define DEBUG_LOG_FILE_PREFIX  "/sandbox-debug-"
+@@ -31,7 +31,7 @@
+ #define ENV_LD_PRELOAD         "LD_PRELOAD"
+ 
+ #define ENV_TMPDIR             "TMPDIR"
+-#define ENV_PORTAGE_TMPDIR     "PORTAGE_TMPDIR"
++#define ENV_SIMPLEBUILD_DIR      "SIMPLEBUILD_DIR"
+ 
+ #define ENV_BASH_ENV           "BASH_ENV"
+ 
+--- src/sandbox.c	2018-03-23 03:40:54.417021608 +0500
++++ src/sandbox.c	2018-03-23 03:44:19.744848652 +0500
+@@ -24,14 +24,14 @@
+ volatile static int stop_called = 0;
+ volatile static pid_t child_pid = 0;
+ 
+-static const char sandbox_banner[] = "============================= Gentoo path sandbox ==============================";
++static const char sandbox_banner[] = "================================== Path sandbox ================================";
+ static const char sandbox_footer[] = "--------------------------------------------------------------------------------";
+ const char *sbio_message_path;
+ const char sbio_fallback_path[] = "/dev/stderr";
+ 
+ static int setup_sandbox(struct sandbox_info_t *sandbox_info, bool interactive)
+ {
+-	if (NULL != getenv(ENV_PORTAGE_TMPDIR)) {
++	if (NULL != getenv(ENV_SIMPLEBUILD_DIR)) {
+ 		/* Portage handle setting SANDBOX_WRITE itself. */
+ 		sandbox_info->work_dir[0] = '\0';
+ 	} else {
+
+--- data/sandbox.bashrc	2018-03-23 03:48:33.291686183 +0500
++++ data/sandbox.bashrc	2018-03-23 04:05:40.466698782 +0500
+@@ -16,6 +16,7 @@
+ 
+ # Only do Mike's sandboxshell mojo if we are interactive, and if
+ # we are connected to a terminal (ie, not piped, etc)
++
+ if [[ ${SANDBOX_INTRACTV} == "1" && -t 1 ]] || [[ ${__SANDBOX_TESTING} == "yes" ]] ; then
+ 	trap ":" INT QUIT TSTP
+ 
+@@ -29,12 +30,11 @@
+ 		(
+ 		[[ ${NOCOLOR} == "true" || ${NOCOLOR} == "yes" || ${NOCOLOR} == "1" ]] && \
+ 			export RC_NOCOLOR="yes"
+-		source /etc/init.d/functions.sh
+-		if [ $? -ne 0 ] ; then
+-			einfo() { echo " INFO: $*"; }
+-			ewarn() { echo " WARN: $*"; }
+-			eerror() { echo " ERR: $*"; }
+-		fi
++
++		einfo() { echo " INFO: $*"; }
++		ewarn() { echo " WARN: $*"; }
++		eerror() { echo " ERR: $*"; }
++
+ 		echo
+ 		einfo "Loading sandboxed shell"
+ 		einfo " Log File:           ${SANDBOX_LOG}"
+@@ -50,43 +50,10 @@
+ 		echo
+ 		)
+ 
+-		# do ebuild environment loading ... detect if we're in portage
++		# do ebuild environment loading ... detect if we're in simple
+ 		# build area or not ... uNF uNF uNF
+-		#sbs_pdir=$(portageq envvar PORTAGE_TMPDIR)/portage/ #portageq takes too long imo
+-		if [[ -z ${PORTAGE_TMPDIR} ]] ; then
+-			sbs_pdir=$(
+-				for f in /etc/{,portage/}make.globals /etc/{,portage/}make.conf ; do
+-					[[ -e ${f} ]] && source ${f}
+-				done
+-				echo $PORTAGE_TMPDIR
+-			)
+-		else
+-			sbs_pdir=${PORTAGE_TMPDIR}
+-		fi
+-		: ${sbs_pdir:=/var/tmp}
+-		sbs_pdir=${sbs_pdir}/portage/
+-
+-		if [[ ${PWD:0:${#sbs_pdir}} == "${sbs_pdir}" ]] ; then
+-			sbs_bdir=$(echo ${PWD:${#sbs_pdir}} | cut -d/ -f1,2)
+-			sbs_tmpenvfile=${sbs_pdir}${sbs_bdir}/temp/environment
+-			if [[ -e ${sbs_tmpenvfile} ]] ; then
+-				echo "Found environment at ${sbs_tmpenvfile}"
+-				printf " * Would you like to enter the portage environment ? "
+-				read env
+-				sbs_PREPWD=${PWD}
+-				if [[ ${env} == "y" ]] ; then
+-					# First try to source variables and export them ...
+-					eval $(sed -e '/^[[:alnum:]_-]*=/s:^:export :' \
+-					           -e '/^[[:alnum:]_-]* ()/Q' "${sbs_tmpenvfile}") 2>/dev/null
+-					# Then grab everything (including functions)
+-					source "${sbs_tmpenvfile}" 2> /dev/null
+-					export SANDBOX_WRITE=${SANDBOX_WRITE}:${sbs_pdir}${sbs_bdir}:${sbs_pdir}/homedir
+-				fi
+-				PWD=${sbs_PREPWD}
+-			fi
+-		fi
+ 
+-		unset sbs_pdir sbs_bdir sbs_tmpenvfile sbs_PREPWD env
++		#export SANDBOX_WRITE=${SANDBOX_WRITE}:${sbs_pdir}${sbs_bdir}:${sbs_pdir}/homedir
+ 	fi
+ 
+ 	cd "${PWD}"
+@@ -103,9 +70,4 @@
+ 	sandboxon()  { export SANDBOX_ON="1" ; }
+ 	sandboxoff() { export SANDBOX_ON="0" ; }
+ 
+-	[[ -z ${CCACHE_DIR} ]] && [[ -w /root/.ccache ]] && export CCACHE_DIR=/root/.ccache
+-	for var in CCACHE_DIR DISTCC_DIR ; do
+-		[[ ${!var+set} == "set" ]] && addwrite ${!var}
+-	done
+-	unset var
+ fi
+
+
