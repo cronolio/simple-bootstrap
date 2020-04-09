@@ -1323,7 +1323,7 @@ PACKAGE=sandbox-2.18.tar.gz setvar
 tar -xf $PACKAGE_A
 cd $PACKAGE_N
 
-patch -p0 <../no-gentoo.patch
+patch -p0 <"$source_dir"/patches/sandbox/no-gentoo.patch
 ./autogen.sh
 ./configure --prefix=/tools \
     --disable-static        \
