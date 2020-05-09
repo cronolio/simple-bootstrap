@@ -1437,11 +1437,15 @@ ln -sv /tools/bin/{install,perl} /usr/bin
 ln -sv /tools/lib/libgcc_s.so{,.1} /usr/lib
 ln -sv /tools/lib/libstdc++.{a,so{,.6}} /usr/lib
 sed 's/tools/usr/' /tools/lib/libstdc++.la > /usr/lib/libstdc++.la
-for lib in blkid lzma mount uuid ssp_nonshared
+
+for lib in blkid lzma mount uuid
 do
     ln -sv /tools/lib/lib$lib.{a,so*} /usr/lib
     sed 's/tools/usr/' /tools/lib/lib${lib}.la > /usr/lib/lib${lib}.la
 done
+
+ln -sv /tools/lib/libssp_nonshared.a /usr/lib
+sed 's/tools/usr/' /tools/lib/libssp_nonshared.la > /usr/lib/libssp_nonshared.la
 
 ln -sv bash /bin/sh
 
