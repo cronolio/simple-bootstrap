@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # based on
-# http://www.linuxfromscratch.org/lfs/view/9.0-systemd/
+# http://www.linuxfromscratch.org/lfs/view/9.0/
 # http://port70.net/~nsz/musl/gcc-9.1.0/
 # http://git.savannah.gnu.org/cgit/dragora.git/tree/
 
