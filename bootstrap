@@ -14,7 +14,7 @@ export LC_ALL=POSIX
 echo LFS is $LFS
 
 mkdir -pv $LFS
-mount -v -t ext4 /dev/vdb3 $LFS
+mount -v -t ext4 /dev/vdb1 $LFS
 
 mkdir -v $LFS/sources
 chmod -v a+wt $LFS/sources
