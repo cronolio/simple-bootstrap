@@ -25,7 +25,6 @@ if [[ ! -f $LFS/sources/fich ]]; then
 
 	cp -v  $runpath/wget-list $LFS/sources
 	cp -v  $runpath/md5sums $LFS/sources
-	cp -v  $runpath/no-gentoo.patch $LFS/sources
 	cp -rv $runpath/patches $LFS/sources
 
 	if [[ ! -f $LFS/sources/wget-list || ! -f $LFS/sources/md5sums ]]; then
