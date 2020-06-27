@@ -1505,9 +1505,9 @@ fi
 
 while [ $# -gt 0 ]; do
 case $1 in
-         -c)  continue_from_user    ;;
+         -u)  continue_from_user    ;;
          -r)  from_root             ;;
-	 -i)  continue_from_chroot  ;;
+	 -c)  continue_from_chroot  ;;
   from-user)  from_user             ;;
 from-chroot)  from_chroot           ;;
 esac
